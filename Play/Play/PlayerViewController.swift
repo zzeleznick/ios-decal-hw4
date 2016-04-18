@@ -14,6 +14,7 @@ class PlayerViewController: UIViewController {
     var scAPI: SoundCloudAPI!
     
     var currentIndex: Int!
+    var isPlaying: Bool = false
     var player: AVPlayer!
     var trackImageView: UIImageView!
     
@@ -115,6 +116,17 @@ class PlayerViewController: UIViewController {
         artistLabel.text = track.artist
     }
     
+    // This Method updates the music track with currentIndex
+    func updateTrack() {
+        let path = NSBundle.mainBundle().pathForResource("Info", ofType: "plist")
+        let clientID = NSDictionary(contentsOfFile: path!)?.valueForKey("client_id") as! String
+        let track = tracks[currentIndex]
+        print("Current Index: \(currentIndex)")
+        let url = NSURL(string: "https://api.soundcloud.com/tracks/\(track.id)/stream?client_id=\(clientID)")!
+        let song = AVPlayerItem(URL: url)
+        player.replaceCurrentItemWithPlayerItem(song)
+    }
+    
     /* 
      *  This Method should play or pause the song, depending on the song's state
      *  It should also toggle between the play and pause images by toggling
@@ -125,12 +137,22 @@ class PlayerViewController: UIViewController {
      *  property accordingly.
      */
     func playOrPauseTrack(sender: UIButton) {
-        let path = NSBundle.mainBundle().pathForResource("Info", ofType: "plist")
-        let clientID = NSDictionary(contentsOfFile: path!)?.valueForKey("client_id") as! String
-        let track = tracks[currentIndex]
-        let url = NSURL(string: "https://api.soundcloud.com/tracks/\(track.id)/stream?client_id=\(clientID)")!
-        // FILL ME IN
-    
+        
+        updateTrack()
+        // if player.currentItem!.status == .ReadyToPlay { }
+        
+        if self.isPlaying == false {
+            player.play()
+            sender.selected = true
+            self.isPlaying = true
+        }
+        else {
+            player.pause()
+            sender.selected = false
+            self.isPlaying = false
+        }
+
+
     }
     
     /* 
@@ -140,7 +162,17 @@ class PlayerViewController: UIViewController {
      * Remember to update the currentIndex
      */
     func nextTrackTapped(sender: UIButton) {
-    
+        if currentIndex < tracks.count {
+            currentIndex = currentIndex + 1
+        }
+        updateTrack()
+        if self.isPlaying == true {
+            player.play()
+            sender.selected = true
+        }
+        else {
+            // pass
+        }
     }
 
     /*
@@ -179,6 +211,8 @@ class PlayerViewController: UIViewController {
     func didLoadTracks(tracks: [Track]) {
         self.tracks = tracks
         loadTrackElements()
+        player = AVPlayer()
+
     }
 }
 
