@@ -13,7 +13,22 @@ class PlayerViewController: UIViewController {
     var tracks: [Track]!
     var scAPI: SoundCloudAPI!
     
-    var currentIndex: Int!
+    var priorIndex: Int!
+    var currentIndex: Int! {
+        willSet {
+            if let idx = currentIndex {
+                priorIndex = idx
+            }
+            else {
+                print("Initializing")
+                priorIndex = 0
+            }
+        }
+        didSet {
+            print("Track \(priorIndex+1) -> \(currentIndex+1)")
+            loadTrackElements()
+        }
+    }
     var isPlaying: Bool = false
     var player: AVPlayer!
     var trackImageView: UIImageView!
@@ -25,6 +40,9 @@ class PlayerViewController: UIViewController {
     var artistLabel: UILabel!
     var titleLabel: UILabel!
     
+    var trackIndexLabel: UILabel!
+    var maxTrackIndex: Int!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view = UIView(frame: UIScreen.mainScreen().bounds)
@@ -32,6 +50,8 @@ class PlayerViewController: UIViewController {
 
         scAPI = SoundCloudAPI()
         scAPI.loadTracks(didLoadTracks)
+        
+        // MARK - Set Current Index
         currentIndex = 0
         
         player = AVPlayer()
@@ -62,6 +82,13 @@ class PlayerViewController: UIViewController {
         artistLabel.textAlignment = NSTextAlignment.Center
         artistLabel.textColor = UIColor.grayColor()
         view.addSubview(artistLabel)
+        
+        trackIndexLabel = UILabel(frame: CGRect(x: 0.0, y: width + offset * 0.35,
+            width: width, height: 20.0))
+        trackIndexLabel.textAlignment = NSTextAlignment.Center
+        trackIndexLabel.textColor = UIColor.grayColor()
+        view.addSubview(trackIndexLabel)
+        
     }
     
     
@@ -110,10 +137,13 @@ class PlayerViewController: UIViewController {
 
     
     func loadTrackElements() {
-        let track = tracks[currentIndex]
-        asyncLoadTrackImage(track)
-        titleLabel.text = track.title
-        artistLabel.text = track.artist
+        if let track = tracks?[currentIndex] {
+            asyncLoadTrackImage(track)
+            titleLabel.text = track.title
+            artistLabel.text = track.artist
+            trackIndexLabel.text = "\(currentIndex+1) of \(maxTrackIndex)"
+        }
+        
     }
     
     // This Method updates the music track with currentIndex
@@ -121,7 +151,6 @@ class PlayerViewController: UIViewController {
         let path = NSBundle.mainBundle().pathForResource("Info", ofType: "plist")
         let clientID = NSDictionary(contentsOfFile: path!)?.valueForKey("client_id") as! String
         let track = tracks[currentIndex]
-        print("Current Index: \(currentIndex)")
         let url = NSURL(string: "https://api.soundcloud.com/tracks/\(track.id)/stream?client_id=\(clientID)")!
         let song = AVPlayerItem(URL: url)
         player.replaceCurrentItemWithPlayerItem(song)
@@ -162,7 +191,7 @@ class PlayerViewController: UIViewController {
      * Remember to update the currentIndex
      */
     func nextTrackTapped(sender: UIButton) {
-        if currentIndex < tracks.count {
+        if currentIndex < tracks.count - 1{
             currentIndex = currentIndex + 1
         }
         updateTrack()
@@ -186,7 +215,15 @@ class PlayerViewController: UIViewController {
      */
 
     func previousTrackTapped(sender: UIButton) {
-    
+        let elapsed = player.currentTime().seconds
+        if elapsed > 3 {
+            print("Starting from beginning")
+            player.seekToTime(CMTimeMakeWithSeconds(3, 1))
+        }
+        else {
+            currentIndex = max(0, currentIndex - 1)
+        }
+        // let elapsed
     }
     
     
@@ -210,6 +247,7 @@ class PlayerViewController: UIViewController {
     
     func didLoadTracks(tracks: [Track]) {
         self.tracks = tracks
+        self.maxTrackIndex = self.tracks.count
         loadTrackElements()
         player = AVPlayer()
 
