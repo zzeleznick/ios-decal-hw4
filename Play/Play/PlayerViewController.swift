@@ -26,7 +26,18 @@ class PlayerViewController: UIViewController {
         }
         didSet {
             print("Track \(priorIndex+1) -> \(currentIndex+1)")
+            if let track = tracks?[currentIndex] {
+                currentTrack = track
+            }
+            else {
+                print("Waiting for tracks to load...")
+            }
+        }
+    }
+    var currentTrack: Track! {
+        didSet {
             loadTrackElements()
+            updatePlayerWithNewTrack()
         }
     }
     var isPlaying: Bool = false
@@ -147,7 +158,7 @@ class PlayerViewController: UIViewController {
     }
     
     // This Method updates the music track with currentIndex
-    func updateTrack() {
+    func updatePlayerWithNewTrack() {
         let path = NSBundle.mainBundle().pathForResource("Info", ofType: "plist")
         let clientID = NSDictionary(contentsOfFile: path!)?.valueForKey("client_id") as! String
         let track = tracks[currentIndex]
@@ -167,20 +178,24 @@ class PlayerViewController: UIViewController {
      */
     func playOrPauseTrack(sender: UIButton) {
         
-        updateTrack()
         // if player.currentItem!.status == .ReadyToPlay { }
         
-        if self.isPlaying == false {
-            player.play()
-            sender.selected = true
-            self.isPlaying = true
-        }
-        else {
+        if player.rate > 0 {
+            // Playing -> Pause
             player.pause()
             sender.selected = false
-            self.isPlaying = false
         }
-
+        
+        else {
+            if let track = currentTrack {
+               // track was properly set
+            }
+            else {
+                updatePlayerWithNewTrack()
+            }
+            player.play()
+            sender.selected = true
+        }
 
     }
     
@@ -191,11 +206,12 @@ class PlayerViewController: UIViewController {
      * Remember to update the currentIndex
      */
     func nextTrackTapped(sender: UIButton) {
+        let willAutoPlay = player.rate > 0
+        
         if currentIndex < tracks.count - 1{
             currentIndex = currentIndex + 1
         }
-        updateTrack()
-        if self.isPlaying == true {
+        if willAutoPlay == true {
             player.play()
             sender.selected = true
         }
@@ -207,25 +223,30 @@ class PlayerViewController: UIViewController {
     /*
      * Called when the previous button is tapped. It should behave in 2 possible
      * ways:
-     *    a) If a song is more than 3 seconds in, seek to the beginning (time 0)
+     *    a) If a song is more than 3 seconds in (and is currently playing),
+     *        seek to the beginning (time 0)
      *    b) Otherwise, check if there is a previous track, and if so it will 
      *       load the previous track's data and automatically play the song if
-     *      a song is already playing
+     *       a song is already playing
      *  Remember to update the currentIndex if necessary
      */
 
     func previousTrackTapped(sender: UIButton) {
+        let willAutoPlay = player.rate > 0
         let elapsed = player.currentTime().seconds
-        if elapsed > 3 {
+        if (elapsed > 3 && willAutoPlay) {
             print("Starting from beginning")
-            player.seekToTime(CMTimeMakeWithSeconds(3, 1))
+            player.seekToTime(CMTimeMakeWithSeconds(0, 1))
         }
         else {
-            currentIndex = max(0, currentIndex - 1)
+            if currentIndex > 0 {
+                currentIndex = currentIndex - 1
+            }
+            if willAutoPlay {
+                player.play()
+            }
         }
-        // let elapsed
     }
-    
     
     func asyncLoadTrackImage(track: Track) {
         let url = NSURL(string: track.artworkURL)
